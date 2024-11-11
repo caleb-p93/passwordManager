@@ -1,5 +1,9 @@
+@file:Suppress("DEPRECATION")
+
 package com.example.mustardseedpasswordmanager
 
+import android.app.Activity
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
@@ -12,7 +16,9 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.mustardseedpasswordmanager.data.PasswordEntry
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import java.util.*
+import com.opencsv.CSVReader
+import java.io.InputStreamReader
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,6 +30,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var passwordInput: EditText
     private var passwordList = mutableListOf<PasswordEntry>()
     private var filteredList = mutableListOf<PasswordEntry>()
+
+    private val CSV_FILE_REQUEST_CODE = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,10 +78,10 @@ class MainActivity : AppCompatActivity() {
         if (query.isNullOrEmpty()) {
             filteredList.addAll(passwordList)
         } else {
-            val lowerCaseQuery = query.lowercase(Locale.getDefault())
+            val lowerCaseQuery = query.toLowerCase(Locale.getDefault())
             passwordList.forEach { entry ->
-                if (entry.website.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
-                    || entry.username.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
+                if (entry.website.toLowerCase(Locale.getDefault()).contains(lowerCaseQuery)
+                    || entry.username.toLowerCase(Locale.getDefault()).contains(lowerCaseQuery)
                 ) {
                     filteredList.add(entry)
                 }
@@ -88,9 +96,9 @@ class MainActivity : AppCompatActivity() {
         val password = passwordInput.text.toString().trim()
 
         if (website.isNotEmpty() && username.isNotEmpty() && password.isNotEmpty()) {
-            val newPasswordEntry = PasswordEntry(website, username, password) // Show actual password
+            val newPasswordEntry = PasswordEntry(website, username, password)
             passwordList.add(newPasswordEntry)
-            filteredList.add(newPasswordEntry) // Add to filtered list as well
+            filteredList.add(newPasswordEntry)
             adapter.notifyDataSetChanged()
 
             savePasswords()
@@ -106,12 +114,10 @@ class MainActivity : AppCompatActivity() {
         usernameInput.setText(passwordEntry.username)
         passwordInput.setText(passwordEntry.password)
 
-        // Remove the old entry
         passwordList.removeAt(position)
         filteredList.removeAt(position)
         adapter.notifyItemRemoved(position)
 
-        // Notify the user
         Toast.makeText(this, "Edit the entry and press Save", Toast.LENGTH_SHORT).show()
     }
 
@@ -141,27 +147,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /*override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.menu_main, menu)
-        return true
+    fun importCSV(view: View) {
+        val intent = Intent(Intent.ACTION_GET_CONTENT)
+        intent.type = "*/*"
+        this.startActivityForResult(intent, CSV_FILE_REQUEST_CODE)
     }
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            R.id.action_clear -> {
-                passwordList.clear()
-                filteredList.clear()
-                adapter.notifyDataSetChanged()
-                clearPasswords()
-                true
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == CSV_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            data?.data?.let { uri ->
+                try {
+                    val inputStream = contentResolver.openInputStream(uri)
+                    val reader = CSVReader(InputStreamReader(inputStream))
+                    reader.forEach { row ->
+                        if (row.size >= 3) {
+                            val website = row[0].trim()
+                            val username = row[1].trim()
+                            val password = row[2].trim()
+                            val entry = PasswordEntry(website, username, password)
+                            passwordList.add(entry)
+                            filteredList.add(entry)
+                        }
+                    }
+                    adapter.notifyDataSetChanged()
+                    savePasswords()
+                    Toast.makeText(this, "CSV Import Successful", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Error importing CSV: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
-            else -> super.onOptionsItemSelected(item)
         }
-    }*/
-
-    private fun clearPasswords() {
-        val editor = sharedPreferences.edit()
-        editor.remove("password_list")
-        editor.apply()
     }
 }
