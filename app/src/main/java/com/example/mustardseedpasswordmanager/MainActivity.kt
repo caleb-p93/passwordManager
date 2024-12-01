@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
+import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -28,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var websiteInput: EditText
     private lateinit var usernameInput: EditText
     private lateinit var passwordInput: EditText
+    private lateinit var saveButton: Button
     private var passwordList = mutableListOf<PasswordEntry>()
     private var filteredList = mutableListOf<PasswordEntry>()
 
@@ -43,6 +45,12 @@ class MainActivity : AppCompatActivity() {
         websiteInput = findViewById(R.id.website_input)
         usernameInput = findViewById(R.id.username_input)
         passwordInput = findViewById(R.id.password_input)
+        saveButton = findViewById(R.id.save_button)
+
+        // Set up click listener for Save button
+        saveButton.setOnClickListener {
+            savePassword()
+        }
 
         adapter = PasswordAdapter(filteredList, this::editPassword, this::deletePassword)
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -90,7 +98,7 @@ class MainActivity : AppCompatActivity() {
         adapter.notifyDataSetChanged()
     }
 
-    fun savePassword(view: View) {
+    private fun savePassword() {
         val website = websiteInput.text.toString().trim()
         val username = usernameInput.text.toString().trim()
         val password = passwordInput.text.toString().trim()
@@ -106,6 +114,8 @@ class MainActivity : AppCompatActivity() {
             websiteInput.text.clear()
             usernameInput.text.clear()
             passwordInput.text.clear()
+        } else {
+            Toast.makeText(this, "Please fill out all fields", Toast.LENGTH_SHORT).show()
         }
     }
 

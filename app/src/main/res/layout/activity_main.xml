@@ -38,23 +38,35 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:hint="Password"
-        android:inputType="textPassword"
+        android:inputType="text"
         android:maxLines="1"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/username_input"
         android:layout_marginTop="16dp"/>
 
-    <!-- Import CSV Button -->
+    <!-- Save Button -->
+    <Button
+    android:id="@+id/save_button"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="Save"
+    app:layout_constraintTop_toBottomOf="@+id/password_input"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    android:layout_marginTop="16dp" />
+
+    <!-- Import CSV-->
     <Button
         android:id="@+id/import_csv_button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Import CSV"
-        app:layout_constraintTop_toBottomOf="@+id/password_input"
+        app:layout_constraintTop_toBottomOf="@+id/save_button"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="16dp"/>
+        android:layout_marginTop="16dp" />
+
 
     <!-- Search View -->
     <androidx.appcompat.widget.SearchView
