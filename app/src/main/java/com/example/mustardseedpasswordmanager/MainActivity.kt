@@ -6,7 +6,6 @@ import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
@@ -30,6 +29,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var usernameInput: EditText
     private lateinit var passwordInput: EditText
     private lateinit var saveButton: Button
+    private lateinit var importCsvButton: Button
+
     private var passwordList = mutableListOf<PasswordEntry>()
     private var filteredList = mutableListOf<PasswordEntry>()
 
@@ -46,11 +47,7 @@ class MainActivity : AppCompatActivity() {
         usernameInput = findViewById(R.id.username_input)
         passwordInput = findViewById(R.id.password_input)
         saveButton = findViewById(R.id.save_button)
-
-        // Set up click listener for Save button
-        saveButton.setOnClickListener {
-            savePassword()
-        }
+        importCsvButton = findViewById(R.id.import_csv_button)
 
         adapter = PasswordAdapter(filteredList, this::editPassword, this::deletePassword)
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -60,14 +57,15 @@ class MainActivity : AppCompatActivity() {
         filteredList.addAll(passwordList)
 
         setupSearchView()
+
+        saveButton.setOnClickListener { savePassword() }
+        importCsvButton.setOnClickListener { importCSV() }
     }
 
     private fun setupSearchView() {
         val searchView = findViewById<SearchView>(R.id.search_view)
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query: String?): Boolean {
-                return false
-            }
+            override fun onQueryTextSubmit(query: String?): Boolean = false
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 filter(newText)
@@ -81,15 +79,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Filters password entries by website or username, ignoring spaces and case */
     private fun filter(query: String?) {
         filteredList.clear()
-        if (query.isNullOrEmpty()) {
+        val trimmedQuery = query?.trim()?.lowercase(Locale.getDefault()) ?: ""
+        if (trimmedQuery.isEmpty()) {
             filteredList.addAll(passwordList)
         } else {
-            val lowerCaseQuery = query.toLowerCase(Locale.getDefault())
             passwordList.forEach { entry ->
-                if (entry.website.toLowerCase(Locale.getDefault()).contains(lowerCaseQuery)
-                    || entry.username.toLowerCase(Locale.getDefault()).contains(lowerCaseQuery)
+                if (entry.website.lowercase(Locale.getDefault()).contains(trimmedQuery)
+                    || entry.username.lowercase(Locale.getDefault()).contains(trimmedQuery)
                 ) {
                     filteredList.add(entry)
                 }
@@ -104,18 +103,29 @@ class MainActivity : AppCompatActivity() {
         val password = passwordInput.text.toString().trim()
 
         if (website.isNotEmpty() && username.isNotEmpty() && password.isNotEmpty()) {
-            val newPasswordEntry = PasswordEntry(website, username, password)
-            passwordList.add(newPasswordEntry)
-            filteredList.add(newPasswordEntry)
-            adapter.notifyDataSetChanged()
+            val existingIndex = passwordList.indexOfFirst {
+                it.website.equals(website, ignoreCase = true) &&
+                        it.username.equals(username, ignoreCase = true)
+            }
 
+            if (existingIndex != -1) {
+                passwordList[existingIndex] = PasswordEntry(website, username, password)
+                Toast.makeText(this, "Entry updated", Toast.LENGTH_SHORT).show()
+            } else {
+                passwordList.add(PasswordEntry(website, username, password))
+                Toast.makeText(this, "Entry saved", Toast.LENGTH_SHORT).show()
+            }
+
+            filteredList.clear()
+            filteredList.addAll(passwordList)
+            adapter.notifyDataSetChanged()
             savePasswords()
 
             websiteInput.text.clear()
             usernameInput.text.clear()
             passwordInput.text.clear()
         } else {
-            Toast.makeText(this, "Please fill out all fields", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -124,18 +134,25 @@ class MainActivity : AppCompatActivity() {
         usernameInput.setText(passwordEntry.username)
         passwordInput.setText(passwordEntry.password)
 
-        passwordList.removeAt(position)
-        filteredList.removeAt(position)
-        adapter.notifyItemRemoved(position)
-
         Toast.makeText(this, "Edit the entry and press Save", Toast.LENGTH_SHORT).show()
     }
 
+    /** Properly deletes the selected password entry */
     private fun deletePassword(position: Int) {
-        passwordList.removeAt(position)
+        if (position < 0 || position >= filteredList.size) return
+
+        val entryToDelete = filteredList[position]
         filteredList.removeAt(position)
         adapter.notifyItemRemoved(position)
+
+        // Remove from master list as well
+        passwordList.removeAll {
+            it.website.equals(entryToDelete.website, ignoreCase = true) &&
+                    it.username.equals(entryToDelete.username, ignoreCase = true)
+        }
+
         savePasswords()
+        Toast.makeText(this, "Entry deleted", Toast.LENGTH_SHORT).show()
     }
 
     private fun savePasswords() {
@@ -150,17 +167,13 @@ class MainActivity : AppCompatActivity() {
         val gson = Gson()
         val json = sharedPreferences.getString("password_list", null)
         val type = object : TypeToken<MutableList<PasswordEntry>>() {}.type
-        return if (json != null) {
-            gson.fromJson(json, type)
-        } else {
-            mutableListOf()
-        }
+        return if (json != null) gson.fromJson(json, type) else mutableListOf()
     }
 
-    fun importCSV(view: View) {
+    private fun importCSV() {
         val intent = Intent(Intent.ACTION_GET_CONTENT)
         intent.type = "*/*"
-        this.startActivityForResult(intent, CSV_FILE_REQUEST_CODE)
+        startActivityForResult(intent, CSV_FILE_REQUEST_CODE)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
